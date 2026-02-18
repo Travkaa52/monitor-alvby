@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SkyKh Admin — Вибір цілі</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --text: #f8fafc;
+            --accent: #22c55e;
+        }
+        body { 
+            font-family: sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; padding: 0; 
+            overflow: hidden;
+            display: flex; flex-direction: column; height: 100vh;
+        }
+        #map { flex-grow: 1; width: 100%; position: relative; }
+        
+        .admin-form {
+            background: #1e293b;
+            padding: 15px;
+            border-top: 2px solid var(--accent);
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .col { flex: 1; }
+
+        label { display: block; font-size: 12px; margin-bottom: 4px; opacity: 0.8; }
+        select, input { 
+            width: 100%; padding: 10px; border-radius: 8px; 
+            border: 1px solid #334155; background: #0f172a; color: white;
+            font-size: 14px; box-sizing: border-box;
+        }
+
+        button { 
+            width: 100%; padding: 12px; background: var(--accent); 
+            color: white; border: none; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        
+        /* Хрестик по центру для зручності */
+        .crosshair {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999; pointer-events: none;
+            color: var(--accent); font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map">
+        <div class="crosshair">+</div>
+    </div>
+
+    <div class="admin-form">
+        <div class="row">
+            <div class="col">
+                <label>Об'єкт</label>
+                <select id="type">
+                    <option value="shahed">Шахед</option>
+                    <option value="rocket">Ракета</option>
+                    <option value="kab">КАБ</option>
+                    <option value="rszo">РСЗВ</option>
+                </select>
+            </div>
+            <div class="col">
+                <label>Курс (°)</label>
+                <input type="number" id="bearing" value="0" min="0" max="360">
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col">
+                <label>Координати (lat, lon)</label>
+                <input type="text" id="coords" readonly placeholder="Натисніть на карту">
+            </div>
+        </div>
+
+        <button id="sendData">ВІДПРАВИТИ ЦІЛЬ</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Ініціалізація карти (Харків за замовчуванням)
+        const map = L.map('map').setView([49.9935, 36.2304], 10);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let activeMarker = null;
+
+        // Функція оновлення координат при кліку
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(4);
+            const lon = e.latlng.lng.toFixed(4);
+            
+            document.getElementById('coords').value = `${lat}, ${lon}`;
+
+            if (activeMarker) {
+                activeMarker.setLatLng(e.latlng);
+            } else {
+                activeMarker = L.marker(e.latlng).addTo(map);
+            }
+        });
+
+        // Відправка даних боту
+        document.getElementById('sendData').addEventListener('click', () => {
+            const coordsVal = document.getElementById('coords').value;
+            if (!coordsVal) {
+                tg.showAlert("Будь ласка, виберіть точку на карті!");
+                return;
+            }
+
+            const coords = coordsVal.split(',');
+            const data = {
+                action: "add",
+                type: document.getElementById('type').value,
+                lat: parseFloat(coords[0]),
+                lon: parseFloat(coords[1]),
+                bearing: parseInt(document.getElementById('bearing').value),
+                t: Date.now()
+            };
+
+            tg.sendData(JSON.stringify(data));
+            tg.close();
+        });
+
+        // Налаштування теми ТГ
+        document.documentElement.style.setProperty('--tg-theme-bg-color', tg.backgroundColor);
+    </script>
+</body>
+</html>
